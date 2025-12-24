@@ -1,0 +1,264 @@
+
+<div class="relative w-screen h-screen overflow-hidden bg-gray-700 font-sans game-cursor select-none" (mousemove)="onMouseMove($event)" (mousedown)="onMouseDown($event)">
+  <!-- Game World Container -->
+  <div class="absolute transition-transform duration-100 ease-out" [style.transform]="'translate(' + cameraPosition().x + 'px, ' + cameraPosition().y + 'px)'">
+    <!-- Map Background -->
+    <div class="absolute bg-cover transition-colors duration-500" [style.width.px]="MAP_SIZE" [style.height.px]="MAP_SIZE" [style.background-color]="currentMapTheme()?.backgroundColor">
+      <!-- Grid pattern for map -->
+      <div class="absolute inset-0" style="background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 50px 50px;"></div>
+    </div>
+
+    <!-- Terrain Patches -->
+    @for(patch of terrainPatches(); track patch.id) {
+        <div class="absolute"
+            [class.animate-pulse]="patch.isHazard"
+            [style.width.px]="patch.size.width"
+            [style.height.px]="patch.size.height"
+            [style.background-color]="patch.color"
+            [style.border-radius]="patch.borderRadius"
+            [style.transform]="'translate(' + (patch.position.x - patch.size.width / 2) + 'px, ' + (patch.position.y - patch.size.height / 2) + 'px)'"
+            [style.box-shadow]="patch.isHazard ? '0 0 25px ' + patch.color : 'none'">
+        </div>
+    }
+
+    <!-- Energy Zones -->
+    @for(zone of energyZones(); track zone.id) {
+        <div class="absolute bg-blue-500/20 rounded-full border-2 border-cyan-300 animate-pulse"
+            [style.width.px]="zone.size"
+            [style.height.px]="zone.size"
+            [style.transform]="'translate(' + (zone.position.x - zone.size / 2) + 'px, ' + (zone.position.y - zone.size / 2) + 'px)'">
+        </div>
+    }
+    
+    <!-- Pickups -->
+    @for (pickup of pickups(); track pickup.id) {
+        <div class="absolute flex items-center justify-center font-bold text-white"
+            [style.width.px]="pickup.size"
+            [style.height.px]="pickup.size"
+            [style.transform]="'translate(' + (pickup.position.x - pickup.size / 2) + 'px, ' + (pickup.position.y - pickup.size / 2) + 'px)'">
+            @if(pickup.pickupType === 'health') {
+                <div class="w-full h-full bg-green-500 rounded-md shadow-lg border-2 border-white/50 flex items-center justify-center">
+                    <div class="w-1/2 h-1/4 bg-white"></div>
+                    <div class="w-1/4 h-1/2 bg-white absolute"></div>
+                </div>
+            }
+            @if(pickup.pickupType === 'ammo') {
+                <div class="w-full h-full bg-yellow-500 rounded-md shadow-lg border-2 border-white/50 flex items-center justify-center text-yellow-900 text-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3/4 w-3/4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Obstacles -->
+    @for (obstacle of obstacles(); track obstacle.id) {
+      <div class="absolute"
+        [class.rounded-full]="obstacle.obstacleType === 'tree'"
+        [class.rounded-xl]="obstacle.obstacleType === 'rock'"
+        [style.background-color]="obstacle.color"
+        [style.width.px]="obstacle.size"
+        [style.height.px]="obstacle.size"
+        [style.transform]="'translate(' + (obstacle.position.x - obstacle.size / 2) + 'px, ' + (obstacle.position.y - obstacle.size / 2) + 'px)'">
+      </div>
+    }
+
+    <!-- Player Character -->
+    @if (player(); as p) {
+      <div class="absolute transition-colors duration-200"
+        [style.transform]="'translate(' + (p.position.x - p.size / 2) + 'px, ' + (p.position.y - p.size / 2) + 'px)'"
+        [style.width.px]="p.size"
+        [style.height.px]="p.size">
+          <div class="w-full h-full rounded-full transition-transform duration-100"
+              [class.bg-blue-400]="!p.isHit"
+              [class.bg-red-500]="p.isHit"
+              [class.scale-125]="p.isHit"
+              [style.transform]="'rotate(' + playerAngle() + 'deg)'">
+              <!-- Player gun barrel -->
+              <div class="absolute top-1/2 left-1/2 w-1/2 h-2 bg-gray-500 rounded-r-full" style="transform-origin: left center; transform: translateY(-50%)"></div>
+          </div>
+      </div>
+    }
+
+    <!-- Bots -->
+    @for (bot of bots(); track bot.id) {
+      <div class="absolute transition-colors duration-200"
+        [style.transform]="'translate(' + (bot.position.x - bot.size / 2) + 'px, ' + (bot.position.y - bot.size / 2) + 'px)'"
+        [style.width.px]="bot.size"
+        [style.height.px]="bot.size">
+        <div class="w-full h-full rounded-full transition-transform duration-100"
+            [class.bg-yellow-400]="!bot.isHit"
+            [class.bg-red-500]="bot.isHit"
+            [class.scale-125]="bot.isHit"
+            [style.transform]="'rotate(' + bot.angle + 'deg)'">
+             <!-- Bot gun barrel -->
+             <div class="absolute top-1/2 left-1/2 w-1/2 h-2 bg-gray-600 rounded-r-full" style="transform-origin: left center; transform: translateY(-50%)"></div>
+        </div>
+        <!-- Bot Health Bar -->
+        <div class="absolute -top-3 w-full h-1.5 bg-gray-600 rounded">
+          <div class="h-full rounded"
+               [class.bg-green-500]="(bot.health / bot.maxHealth) > 0.3"
+               [class.bg-red-500]="(bot.health / bot.maxHealth) <= 0.3"
+               [style.width.%]="(bot.health / bot.maxHealth) * 100"></div>
+        </div>
+      </div>
+    }
+
+    <!-- Projectiles -->
+    @for (p of projectiles(); track p.id) {
+      <div class="absolute rounded-full shadow-lg"
+        [style.background-color]="p.color"
+        [style.transform]="'translate(' + (p.position.x - p.size / 2) + 'px, ' + (p.position.y - p.size / 2) + 'px)'"
+        [style.width.px]="p.size"
+        [style.height.px]="p.size">
+      </div>
+    }
+
+    <!-- Muzzle Flashes -->
+    @for (flash of muzzleFlashes(); track flash.id) {
+      <div class="absolute text-yellow-300" 
+        [style.transform]="'translate(' + (flash.position.x) + 'px, ' + (flash.position.y) + 'px) rotate(' + flash.angle + 'deg)'"
+        [style.opacity]="flash.life / flash.maxLife"
+        style="transform-origin: left center;">
+        <svg width="40" height="20" viewBox="0 0 100 50" fill="currentColor">
+            <polygon points="0,25 50,0 40,25 50,50"/>
+            <polygon points="50,15 100,25 50,35"/>
+        </svg>
+      </div>
+    }
+
+    <!-- Particles -->
+    @for (particle of particles(); track particle.id) {
+        <div class="absolute rounded-full"
+            [style.background-color]="particle.color"
+            [style.width.px]="particle.size"
+            [style.height.px]="particle.size"
+            [style.transform]="'translate(' + (particle.position.x - particle.size/2) + 'px, ' + (particle.position.y - particle.size/2) + 'px)'"
+            [style.opacity]="particle.life / particle.maxLife">
+        </div>
+    }
+  </div>
+
+  <!-- UI Overlay -->
+  <div class="absolute top-0 left-0 w-full h-full pointer-events-none p-8 text-white font-sans">
+    <!-- Minimap -->
+    <div class="absolute top-8 left-8 w-64 h-64 bg-black/50 rounded-lg border-2 border-white/30 backdrop-blur-sm">
+        <div class="relative w-full h-full">
+            @for(zone of energyZones(); track zone.id) {
+                 <div class="absolute rounded-full bg-blue-500/30"
+                    [style.width.px]="zone.size / MAP_SIZE * 256" 
+                    [style.height.px]="zone.size / MAP_SIZE * 256"
+                    [style.left.%]="zone.position.x / MAP_SIZE * 100"
+                    [style.top.%]="zone.position.y / MAP_SIZE * 100"
+                    style="transform: translate(-50%, -50%);">
+                </div>
+            }
+            @for(pickup of pickups(); track pickup.id) {
+                <div class="absolute rounded-full"
+                    [class.bg-green-500]="pickup.pickupType === 'health'"
+                    [class.bg-yellow-500]="pickup.pickupType === 'ammo'"
+                    [style.width.px]="6" [style.height.px]="6"
+                    [style.left.%]="pickup.position.x / MAP_SIZE * 100"
+                    [style.top.%]="pickup.position.y / MAP_SIZE * 100"
+                    style="transform: translate(-50%, -50%);">
+                </div>
+            }
+            @for(bot of bots(); track bot.id) {
+                <div class="absolute w-2 h-2 bg-yellow-400 rounded-full"
+                    [style.left.%]="bot.position.x / MAP_SIZE * 100"
+                    [style.top.%]="bot.position.y / MAP_SIZE * 100"
+                    style="transform: translate(-50%, -50%);">
+                </div>
+            }
+            @if (player(); as p) {
+                <div class="absolute w-2.5 h-2.5 bg-blue-400 rounded-full border-2 border-white"
+                    [style.left.%]="p.position.x / MAP_SIZE * 100"
+                    [style.top.%]="p.position.y / MAP_SIZE * 100"
+                    style="transform: translate(-50%, -50%);">
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Player Health & Ammo -->
+    @if (player(); as p) {
+      <div class="absolute bottom-8 left-8 w-64">
+        <div class="flex justify-between items-end mb-1">
+            <div class="text-lg font-bold">HEALTH</div>
+            <div class="font-bold text-sm">{{ p.health }} / {{ p.maxHealth }}</div>
+        </div>
+        <div class="w-full h-6 bg-gray-600 rounded-full border-2 border-gray-900 overflow-hidden">
+          <div class="h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full transition-all duration-300" [style.width.%]="(p.health / p.maxHealth) * 100"></div>
+        </div>
+        <div class="flex justify-between items-end mt-2">
+            <div class="text-lg font-bold">AMMO</div>
+            <div class="font-bold text-2xl">{{ p.ammo }} / {{ p.maxAmmo }}</div>
+        </div>
+      </div>
+    }
+
+     <!-- Dash Ability UI -->
+    @if(player(); as p) {
+        <div class="absolute bottom-8 right-8 flex flex-col items-center">
+            <div class="w-16 h-16 bg-black/50 rounded-lg border-2 border-white/30 flex items-center justify-center relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                @if (dashCooldownProgress() < 1) {
+                    <div class="absolute inset-0 bg-black/70 flex items-center justify-center font-bold text-xl" [style.clip-path]="'inset(' + (1 - dashCooldownProgress()) * 100 + '% 0 0 0)'">
+                    </div>
+                }
+            </div>
+            <div class="font-bold mt-1 text-sm bg-black/50 px-2 rounded">E</div>
+        </div>
+    }
+
+    <!-- Top Right UI -->
+    <div class="absolute top-8 right-8 text-right">
+        <!-- Bots Remaining -->
+        <div>
+            <div class="text-4xl font-extrabold">{{ bots().length }}</div>
+            <div class="text-lg font-bold tracking-wider">REMAINING</div>
+        </div>
+        <!-- Kill Feed -->
+        <div class="mt-4 flex flex-col items-end space-y-1">
+            @for(item of killFeed(); track item.id) {
+                <div class="bg-black/50 px-3 py-1 rounded-md text-sm shadow-lg animate-fade-in-out">
+                    <span class="font-bold text-blue-300">{{ item.killerName }}</span>
+                    eliminated
+                    <span class="font-bold text-yellow-300">{{ item.victimName }}</span>
+                </div>
+            }
+        </div>
+    </div>
+  </div>
+
+  <!-- Game State Overlays -->
+  @if (gameState() !== 'playing') {
+    <div class="absolute inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center text-white z-50">
+      @if (gameState() === 'gameOver') {
+        <div class="text-center">
+          <h1 class="text-8xl font-extrabold text-red-500 mb-4">ELIMINATED</h1>
+          <p class="text-2xl mb-8">Better luck next time!</p>
+        </div>
+      }
+      @if (gameState() === 'victory') {
+        <div class="text-center">
+          <h1 class="text-8xl font-extrabold text-yellow-400 mb-4">VICTORY!</h1>
+          <p class="text-2xl mb-8">You are the last one standing.</p>
+        </div>
+      }
+      <button class="px-8 py-4 bg-indigo-600 hover:bg-indigo-700 rounded-lg text-xl font-bold transition-transform hover:scale-105" (click)="restartGame()">
+        Play Again
+      </button>
+    </div>
+  }
+</div>
+<style>
+    @keyframes fadeInOut {
+        0% { opacity: 0; transform: translateX(100%); }
+        15% { opacity: 1; transform: translateX(0); }
+        85% { opacity: 1; transform: translateX(0); }
+        100% { opacity: 0; transform: translateX(100%); }
+    }
+    .animate-fade-in-out {
+        animation: fadeInOut 5s forwards;
+    }
+</style>

@@ -1,0 +1,5 @@
+{
+  "name": "Battle Ground Bots",
+  "description": "A top-down 2D shooter game inspired by Fortnite, featuring a large map and AI-controlled bots. Move your character, shoot enemies, and be the last one standing in this simplified battle royale experience.",
+  "requestFramePermissions": []
+}
